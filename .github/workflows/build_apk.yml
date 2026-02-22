@@ -1,4 +1,4 @@
-name: Build Android APK from ZIP
+name: Auto Build Android APK from ZIP
 
 on:
   push:
@@ -28,16 +28,24 @@ jobs:
       - name: Unzip project
         run: unzip -o islamic_prayer_times_android.zip -d project
 
-      # 5️⃣ Build APK from INNER folder
+      # 5️⃣ 🔍 Auto-detect Android project folder
+      - name: Detect project directory
+        id: detect
+        run: |
+          DIR=$(find project -type f -name "gradlew" | head -n 1 | xargs dirname)
+          echo "Found project at: $DIR"
+          echo "project_dir=$DIR" >> $GITHUB_OUTPUT
+
+      # 6️⃣ Build APK
       - name: Build Debug APK
-        working-directory: project/islamic_prayer_times_android/islamic_prayer_times_android
+        working-directory: ${{ steps.detect.outputs.project_dir }}
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      # 6️⃣ Upload APK artifact
+      # 7️⃣ Upload APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
-          path: project/islamic_prayer_times_android/islamic_prayer_times_android/app/build/outputs/apk/debug/*.apk
+          path: ${{ steps.detect.outputs.project_dir }}/app/build/outputs/apk/debug/*.apk
