@@ -3,60 +3,34 @@ name: Build Release APK
 on:
   push:
     branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
   build:
-    name: Build Release APK
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Validate Gradle Wrapper
-        uses: gradle/wrapper-validation-action@v2
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      - name: Install Gradle 8.6
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 8.6
 
       - name: Build Release APK
-        run: ./gradlew assembleRelease --no-daemon --stacktrace
-
-      - name: List APK outputs
-        run: find app/build/outputs/apk -name "*.apk" -exec ls -lh {} \;
+        run: gradle assembleRelease --no-daemon --stacktrace
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: IslamicPrayerTimes-release-apk
+          name: release-apk
           path: app/build/outputs/apk/release/*.apk
-          retention-days: 30
-          if-no-files-found: error
-
-      - name: Build Summary
-        run: |
-          echo "## ✅ Build Successful" >> $GITHUB_STEP_SUMMARY
-          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
-          echo "| App | Islamic Prayer Times |" >> $GITHUB_STEP_SUMMARY
-          echo "| Developer | Khalid Hasan Limon |" >> $GITHUB_STEP_SUMMARY
-          echo "| Language | Java + XML (Native Android) |" >> $GITHUB_STEP_SUMMARY
-          echo "| Min SDK | 24 |" >> $GITHUB_STEP_SUMMARY
-          echo "| Target SDK | 34 |" >> $GITHUB_STEP_SUMMARY
-          APK=$(find app/build/outputs/apk/release -name "*.apk" 2>/dev/null | head -1)
-          if [ -f "$APK" ]; then
-            echo "| APK Size | $(du -h "$APK" | cut -f1) |" >> $GITHUB_STEP_SUMMARY
-          fi
