@@ -1,0 +1,52 @@
+name: Build APK Release
+
+on:
+  push:
+    branches: [main, release]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.0'
+          cache: true
+      
+      - name: Get dependencies
+        run: flutter pub get
+      
+      - name: Generate code
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+      
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+      
+      - name: Build APK
+        run: flutter build apk --release
+      
+      - name: Build Split APK
+        run: flutter build apk --target-platform android-arm64 --split-per-abi --release
+      
+      - name: Upload APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
+      
+      - name: Upload Split APKs
+        uses: actions/upload-artifact@v3
+        with:
+          name: split-apks
+          path: build/app/outputs/flutter-apk/
+          retention-days: 30
