@@ -1,51 +1,62 @@
-name: Build Android APK (System Gradle 8)
+name: Build Release APK
 
 on:
   push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
   build:
+    name: Build Release APK
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      # Java
-      - uses: actions/setup-java@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
-          distribution: temurin
           java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
 
-      # Android SDK
-      - uses: android-actions/setup-android@v3
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-      # ✅ Install MODERN Gradle
-      - name: Install Gradle 8.7
-        run: |
-          wget https://services.gradle.org/distributions/gradle-8.7-bin.zip
-          unzip gradle-8.7-bin.zip
-          echo "$PWD/gradle-8.7/bin" >> $GITHUB_PATH
+      - name: Validate Gradle Wrapper
+        uses: gradle/wrapper-validation-action@v2
 
-      # Unzip project
-      - name: Extract ZIP
-        run: unzip -o islamic_prayer_times_android.zip -d project
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
 
-      # Detect project
-      - name: Detect project directory
-        id: detect
-        run: |
-          DIR=$(find project -type f -name "settings.gradle" | head -n 1 | xargs dirname)
-          echo "Project at: $DIR"
-          echo "project_dir=$DIR" >> $GITHUB_OUTPUT
+      - name: Build Release APK
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
 
-      # Build APK
-      - name: Build APK
-        working-directory: ${{ steps.detect.outputs.project_dir }}
-        run: gradle assembleDebug
+      - name: List APK outputs
+        run: find app/build/outputs/apk -name "*.apk" -exec ls -lh {} \;
 
-      # Upload APK
-      - uses: actions/upload-artifact@v4
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
-          path: ${{ steps.detect.outputs.project_dir }}/app/build/outputs/apk/debug/*.apk
+          name: IslamicPrayerTimes-release-apk
+          path: app/build/outputs/apk/release/*.apk
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Build Summary
+        run: |
+          echo "## ✅ Build Successful" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| App | Islamic Prayer Times |" >> $GITHUB_STEP_SUMMARY
+          echo "| Developer | Khalid Hasan Limon |" >> $GITHUB_STEP_SUMMARY
+          echo "| Language | Java + XML (Native Android) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Min SDK | 24 |" >> $GITHUB_STEP_SUMMARY
+          echo "| Target SDK | 34 |" >> $GITHUB_STEP_SUMMARY
+          APK=$(find app/build/outputs/apk/release -name "*.apk" 2>/dev/null | head -1)
+          if [ -f "$APK" ]; then
+            echo "| APK Size | $(du -h "$APK" | cut -f1) |" >> $GITHUB_STEP_SUMMARY
+          fi
