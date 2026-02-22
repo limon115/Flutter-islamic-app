@@ -1,4 +1,4 @@
-name: Build Android APK (No Wrapper)
+name: Build Android APK (System Gradle 8)
 
 on:
   push:
@@ -9,40 +9,42 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout repo
       - uses: actions/checkout@v4
 
-      # 2️⃣ Setup Java
+      # Java
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      # 3️⃣ Setup Android SDK
+      # Android SDK
       - uses: android-actions/setup-android@v3
 
-      # 4️⃣ Install Gradle (system version)
-      - name: Install Gradle
-        run: sudo apt-get update && sudo apt-get install -y gradle
+      # ✅ Install MODERN Gradle
+      - name: Install Gradle 8.7
+        run: |
+          wget https://services.gradle.org/distributions/gradle-8.7-bin.zip
+          unzip gradle-8.7-bin.zip
+          echo "$PWD/gradle-8.7/bin" >> $GITHUB_PATH
 
-      # 5️⃣ Extract ZIP
-      - name: Unzip project
+      # Unzip project
+      - name: Extract ZIP
         run: unzip -o islamic_prayer_times_android.zip -d project
 
-      # 6️⃣ 🔍 Auto-detect Android project folder
+      # Detect project
       - name: Detect project directory
         id: detect
         run: |
           DIR=$(find project -type f -name "settings.gradle" | head -n 1 | xargs dirname)
-          echo "Project found at: $DIR"
+          echo "Project at: $DIR"
           echo "project_dir=$DIR" >> $GITHUB_OUTPUT
 
-      # 7️⃣ Build Debug APK using system Gradle
+      # Build APK
       - name: Build APK
         working-directory: ${{ steps.detect.outputs.project_dir }}
         run: gradle assembleDebug
 
-      # 8️⃣ Upload APK
+      # Upload APK
       - uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
