@@ -1,68 +1,39 @@
-name: ULTRA Fail-Proof Flutter APK Build
+name: Build Flutter APK
 
 on:
   workflow_dispatch:
   push:
-    branches: [ main, master, release ]
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      # 🧾 STEP 1 — Checkout repo
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # 🔎 STEP 2 — Show files (debug)
-      - name: Show repository structure
-        run: ls -R
-
-      # 🔍 STEP 3 — Find pubspec.yaml automatically
-      - name: Locate Flutter project
-        id: locate
-        run: |
-          FILE=$(find . -name "pubspec.yaml" | head -n 1)
-          if [ -z "$FILE" ]; then
-            echo "❌ ERROR: No Flutter project found"
-            exit 1
-          fi
-          DIR=$(dirname "$FILE")
-          echo "PROJECT_DIR=$DIR" >> $GITHUB_ENV
-          echo "✅ Flutter project located at $DIR"
-
-      # 🐦 STEP 4 — Install Flutter
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          cache: true
 
-      # ☕ STEP 5 — Setup Java (required)
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-      # 📦 STEP 6 — Get dependencies
-      - name: Flutter pub get
-        working-directory: ${{ env.PROJECT_DIR }}
+      - name: Get dependencies
         run: flutter pub get
 
-      # 🧩 STEP 7 — Generate code (safe if unused)
-      - name: Run build_runner (if present)
-        working-directory: ${{ env.PROJECT_DIR }}
+      - name: Generate code
         run: flutter pub run build_runner build --delete-conflicting-outputs || true
 
-      # 🔨 STEP 8 — Build APK
-      - name: Build Release APK
-        working-directory: ${{ env.PROJECT_DIR }}
+      - name: Build APK
         run: flutter build apk --release
 
-      # 📤 STEP 9 — Upload APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Flutter-Release-APK
-          path: ${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-release.apk
+          name: release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
