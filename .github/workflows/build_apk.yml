@@ -27,10 +27,11 @@ jobs:
           gradle-version: 8.6
 
       - name: Build Release APK
+        working-directory: islamic_prayer_times_android
         run: gradle assembleRelease --no-daemon --stacktrace
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
           name: release-apk
-          path: app/build/outputs/apk/release/*.apk
+          path: islamic_prayer_times_android/app/build/outputs/apk/release/*.apk
