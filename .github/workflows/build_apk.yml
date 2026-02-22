@@ -1,0 +1,108 @@
+name: Build Release APK
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Release APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Download correct Gradle wrapper JAR
+        run: |
+          GRADLE_VERSION=$(grep distributionUrl gradle/wrapper/gradle-wrapper.properties | sed 's/.*gradle-\(.*\)-bin.zip/\1/')
+          echo "Gradle version: $GRADLE_VERSION"
+          curl -L "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" -o /tmp/gradle.zip
+          unzip -p /tmp/gradle.zip "gradle-${GRADLE_VERSION}/lib/plugins/gradle-wrapper-*.jar" > gradle/wrapper/gradle-wrapper.jar 2>/dev/null || \
+          curl -L "https://raw.githubusercontent.com/gradle/gradle/v${GRADLE_VERSION}/gradle/wrapper/gradle-wrapper.jar" \
+               -o gradle/wrapper/gradle-wrapper.jar || \
+          ./gradlew --version || true
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v3
+
+      - name: Build Release APK
+        run: ./gradlew assembleRelease --stacktrace
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true"
+
+      - name: Sign APK (debug key for CI)
+        run: |
+          find . -name "*.apk" -path "*/release/*" | head -5
+          echo "APK built successfully"
+
+      - name: Get APK path
+        id: apk_path
+        run: |
+          APK=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
+          echo "apk_path=$APK" >> $GITHUB_OUTPUT
+          echo "Found APK: $APK"
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: IslamicPrayerTimes-release-apk
+          path: app/build/outputs/apk/release/*.apk
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Build Summary
+        run: |
+          echo "## ✅ Build Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**App:** Islamic Prayer Times" >> $GITHUB_STEP_SUMMARY
+          echo "**Developer:** Khalid Hasan Limon" >> $GITHUB_STEP_SUMMARY
+          echo "**Platform:** Android (Java + XML)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### APK Details" >> $GITHUB_STEP_SUMMARY
+          APK=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
+          if [ -f "$APK" ]; then
+            SIZE=$(du -h "$APK" | cut -f1)
+            echo "- **File:** $(basename $APK)" >> $GITHUB_STEP_SUMMARY
+            echo "- **Size:** $SIZE" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Features Included" >> $GITHUB_STEP_SUMMARY
+          echo "- 🕌 Precise GPS-based prayer times (Karachi method)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🌙 Suhur & ☀️ Iftar countdown timer" >> $GITHUB_STEP_SUMMARY
+          echo "- 📍 Bangladesh timezone + reverse geocoding" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔔 Per-prayer notifications" >> $GITHUB_STEP_SUMMARY
+          echo "- 🏠 Home screen widget with Iftar countdown" >> $GITHUB_STEP_SUMMARY
+          echo "- 🌓 Dark/Light mode" >> $GITHUB_STEP_SUMMARY
+          echo "- 💾 Offline capable with SharedPreferences storage" >> $GITHUB_STEP_SUMMARY
+
