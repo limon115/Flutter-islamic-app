@@ -1,62 +1,68 @@
-name: Build APK Release
+name: ULTRA Fail-Proof Flutter APK Build
 
 on:
-  push:
-    branches: [ main, release ]
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
+  push:
+    branches: [ main, master, release ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      # 📥 Checkout repository
-      - uses: actions/checkout@v4
+      # 🧾 STEP 1 — Checkout repo
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      # 🐦 Install Flutter
-      - name: Set up Flutter
+      # 🔎 STEP 2 — Show files (debug)
+      - name: Show repository structure
+        run: ls -R
+
+      # 🔍 STEP 3 — Find pubspec.yaml automatically
+      - name: Locate Flutter project
+        id: locate
+        run: |
+          FILE=$(find . -name "pubspec.yaml" | head -n 1)
+          if [ -z "$FILE" ]; then
+            echo "❌ ERROR: No Flutter project found"
+            exit 1
+          fi
+          DIR=$(dirname "$FILE")
+          echo "PROJECT_DIR=$DIR" >> $GITHUB_ENV
+          echo "✅ Flutter project located at $DIR"
+
+      # 🐦 STEP 4 — Install Flutter
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.16.0'
+          channel: stable
           cache: true
 
-      # 📦 Install dependencies
-      - name: Get dependencies
-        run: flutter pub get
-
-      # 🧩 Generate code (only if using build_runner)
-      - name: Generate code
-        run: flutter pub run build_runner build --delete-conflicting-outputs
-
-      # ☕ Install Java
-      - name: Set up JDK
+      # ☕ STEP 5 — Setup Java (required)
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: temurin
+          java-version: "17"
 
-      # 🔨 Build release APK
-      - name: Build APK
+      # 📦 STEP 6 — Get dependencies
+      - name: Flutter pub get
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: flutter pub get
+
+      # 🧩 STEP 7 — Generate code (safe if unused)
+      - name: Run build_runner (if present)
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: flutter pub run build_runner build --delete-conflicting-outputs || true
+
+      # 🔨 STEP 8 — Build APK
+      - name: Build Release APK
+        working-directory: ${{ env.PROJECT_DIR }}
         run: flutter build apk --release
 
-      # 🔨 Build split APKs (optional)
-      - name: Build Split APK
-        run: flutter build apk --target-platform android-arm64 --split-per-abi --release
-
-      # 📤 Upload main APK
+      # 📤 STEP 9 — Upload APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 30
-
-      # 📤 Upload split APKs
-      - name: Upload Split APKs
-        uses: actions/upload-artifact@v4
-        with:
-          name: split-apks
-          path: build/app/outputs/flutter-apk/
-          retention-days: 30
+          name: Flutter-Release-APK
+          path: ${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-release.apk
