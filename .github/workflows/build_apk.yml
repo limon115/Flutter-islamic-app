@@ -1,4 +1,4 @@
-name: Auto Build Android APK from ZIP
+name: Build Android APK (No Wrapper)
 
 on:
   push:
@@ -10,42 +10,40 @@ jobs:
 
     steps:
       # 1️⃣ Checkout repo
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       # 2️⃣ Setup Java
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
       # 3️⃣ Setup Android SDK
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v3
 
-      # 4️⃣ Extract ZIP
+      # 4️⃣ Install Gradle (system version)
+      - name: Install Gradle
+        run: sudo apt-get update && sudo apt-get install -y gradle
+
+      # 5️⃣ Extract ZIP
       - name: Unzip project
         run: unzip -o islamic_prayer_times_android.zip -d project
 
-      # 5️⃣ 🔍 Auto-detect Android project folder
+      # 6️⃣ 🔍 Auto-detect Android project folder
       - name: Detect project directory
         id: detect
         run: |
-          DIR=$(find project -type f -name "gradlew" | head -n 1 | xargs dirname)
-          echo "Found project at: $DIR"
+          DIR=$(find project -type f -name "settings.gradle" | head -n 1 | xargs dirname)
+          echo "Project found at: $DIR"
           echo "project_dir=$DIR" >> $GITHUB_OUTPUT
 
-      # 6️⃣ Build APK
-      - name: Build Debug APK
+      # 7️⃣ Build Debug APK using system Gradle
+      - name: Build APK
         working-directory: ${{ steps.detect.outputs.project_dir }}
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug
+        run: gradle assembleDebug
 
-      # 7️⃣ Upload APK
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      # 8️⃣ Upload APK
+      - uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
           path: ${{ steps.detect.outputs.project_dir }}/app/build/outputs/apk/debug/*.apk
