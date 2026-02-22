@@ -13,32 +13,31 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Install Java (required for Android build)
+      # 2️⃣ Setup Java
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      # 3️⃣ Install Android SDK
+      # 3️⃣ Setup Android SDK
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      # 4️⃣ Extract your ZIP
+      # 4️⃣ Extract ZIP
       - name: Unzip project
-        run: |
-          unzip -o islamic_prayer_times_android.zip -d project
+        run: unzip -o islamic_prayer_times_android.zip -d project
 
-      # 5️⃣ Build APK
+      # 5️⃣ Build APK from INNER folder
       - name: Build Debug APK
-        working-directory: project/mes_android/islamic_prayer_times_android
+        working-directory: project/islamic_prayer_times_android/islamic_prayer_times_android
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      # 6️⃣ Upload APK
+      # 6️⃣ Upload APK artifact
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
-          path: project/mes_android/islamic_prayer_times_android/app/build/outputs/apk/debug/*.apk
+          path: project/islamic_prayer_times_android/islamic_prayer_times_android/app/build/outputs/apk/debug/*.apk
