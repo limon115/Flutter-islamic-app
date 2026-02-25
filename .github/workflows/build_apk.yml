@@ -1,4 +1,4 @@
-name: Build Android APK (Safe)
+name: Build Android APK (Ultimate Safe)
 
 on:
   push:
@@ -10,32 +10,59 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Get code
+
+      # 1️⃣ Get repository
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2️⃣ Install Java (required)
+      # 2️⃣ Extract ZIP project
+      - name: Unzip project
+        run: unzip -o *.zip -d project
+
+      # 3️⃣ Setup Java
       - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
-      # 3️⃣ Install Gradle (ignore wrapper)
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+      # 4️⃣ Setup Android SDK
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-      # 4️⃣ Build Debug APK
+      # 5️⃣ Install clean Gradle (ignore wrapper)
+      - name: Install Gradle 8.7
+        run: |
+          wget -q https://services.gradle.org/distributions/gradle-8.7-bin.zip
+          unzip -q gradle-8.7-bin.zip
+          echo "$PWD/gradle-8.7/bin" >> $GITHUB_PATH
+
+      # 6️⃣ Auto-detect Android project root
+      - name: Locate project root
+        run: |
+          ROOT=$(find project -name "settings.gradle*" | head -n 1 | xargs dirname)
+          echo "ROOT=$ROOT" >> $GITHUB_ENV
+          echo "Project root: $ROOT"
+
+      # 7️⃣ Force AndroidX (prevents many crashes)
+      - name: Enable AndroidX
+        run: |
+          echo "android.useAndroidX=true" >> "$ROOT/gradle.properties"
+          echo "android.enableJetifier=true" >> "$ROOT/gradle.properties"
+
+      # 8️⃣ Build Debug APK
       - name: Build APK
-        run: gradle assembleDebug --no-daemon
+        run: |
+          cd "$ROOT"
+          gradle assembleDebug --no-daemon
 
-      # 5️⃣ Find APK automatically
-      - name: Locate APK
-        run: find . -name "*.apk"
+      # 9️⃣ Show built APKs (for debugging)
+      - name: Locate APKs
+        run: find project -name "*.apk"
 
-      # 6️⃣ Upload ANY debug APK found
+      # 🔟 Upload ANY APK found
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: "**/build/outputs/apk/debug/*.apk"
+          path: project/**/*.apk
