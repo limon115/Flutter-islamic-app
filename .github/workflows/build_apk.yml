@@ -44,6 +44,16 @@ jobs:
           echo "ROOT=$ROOT" >> $GITHUB_ENV
           echo "Project root: $ROOT"
 
+      # ⭐ NEW — Fix SDK versions automatically
+      - name: Fix SDK versions automatically
+        run: |
+          FILE=$(find "$ROOT" -name "build.gradle" | grep app/build.gradle | head -n 1)
+          echo "Patching $FILE"
+
+          sed -i 's/compileSdkVersion [0-9]\+/compileSdkVersion 34/g' "$FILE"
+          sed -i 's/targetSdkVersion [0-9]\+/targetSdkVersion 34/g' "$FILE"
+          sed -i 's/minSdkVersion [0-9]\+/minSdkVersion 21/g' "$FILE"
+
       # 7️⃣ Force AndroidX (prevents many crashes)
       - name: Enable AndroidX
         run: |
