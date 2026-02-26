@@ -11,71 +11,60 @@ jobs:
 
     steps:
 
-      # Checkout repository
+      # 1. Checkout repo
       - uses: actions/checkout@v4
 
-      # Unzip Android project
+      # 2. Unzip Android project
       - name: Unzip project
         run: unzip -o *.zip -d project
 
-      # Setup Java
+      # 3. Setup Java 17 (required by your Gradle)
       - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
-      # Setup Android SDK
-      - uses: android-actions/setup-android@v3
+      # 4. Setup Android SDK
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-      # Install Gradle (ignore wrapper)
-      - name: Install Gradle
+      # 5. Install required SDK components (API 34)
+      - name: Install Android 34 SDK
+        run: |
+          sdkmanager "platform-tools" \
+                     "platforms;android-34" \
+                     "build-tools;34.0.0"
+
+      # 6. Install Gradle (ignore wrapper)
+      - name: Install Gradle 8.7
         run: |
           wget -q https://services.gradle.org/distributions/gradle-8.7-bin.zip
           unzip -q gradle-8.7-bin.zip
           echo "$PWD/gradle-8.7/bin" >> $GITHUB_PATH
 
-      # Locate project root
+      # 7. Locate project root
       - name: Locate project root
         run: |
           ROOT=$(find project -name "settings.gradle*" | head -n 1 | xargs dirname)
           echo "ROOT=$ROOT" >> $GITHUB_ENV
+          echo "Project root: $ROOT"
 
-      # Replace adaptive icons with legacy PNG icons
-      - name: Replace launcher icons
-        run: |
-          RES="$ROOT/app/src/main/res"
-
-          # Remove adaptive icon XML files
-          find "$RES" -name "ic_launcher*.xml" -delete
-
-          # Add PNG launcher icons for all densities
-          for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
-            mkdir -p "$RES/$d"
-            wget -q -O "$RES/$d/ic_launcher.png" https://raw.githubusercontent.com/google/material-design-icons/master/png/action/android/materialicons/48dp/1x/baseline_android_black_48dp.png
-            cp "$RES/$d/ic_launcher.png" "$RES/$d/ic_launcher_round.png"
-          done
-
-      # Remove round icon reference from manifest (if present)
-      - name: Fix manifest
-        run: |
-          MANIFEST=$(find "$ROOT" -name "AndroidManifest.xml" | head -n 1)
-          sed -i 's|android:roundIcon="[^"]*"||g' "$MANIFEST"
-
-      # Enable AndroidX
+      # 8. Enable AndroidX (safe)
       - name: Enable AndroidX
         run: |
           echo "android.useAndroidX=true" >> "$ROOT/gradle.properties"
           echo "android.enableJetifier=true" >> "$ROOT/gradle.properties"
 
-      # Build APK
-      - name: Build Debug APK
+      # 9. Build Debug APK
+      - name: Build APK
         run: |
           cd "$ROOT"
           gradle assembleDebug --no-daemon
 
-      # Upload APK artifact
-      - uses: actions/upload-artifact@v4
+      # 10. Upload APK
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
           name: android-apk
           path: project/**/*.apk
